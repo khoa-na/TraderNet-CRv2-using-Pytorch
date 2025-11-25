@@ -1,0 +1,11 @@
+numpy
+pandas
+matplotlib
+python-binance
+python-dotenv
+tqdm
+ta
+torch
+stable-baselines3
+shimmy>=2.0.0
+gymnasium
