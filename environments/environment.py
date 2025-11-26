@@ -18,6 +18,7 @@ class TradingEnvironment(gym.Env):
         self._episode_steps = env_config['episode_steps']
 
         self._metrics = env_config['metrics']
+        self._rules = env_config.get('rules', [])
 
         if self._metrics is None:
             self._metrics = []
@@ -60,6 +61,10 @@ class TradingEnvironment(gym.Env):
         return self._states[self._state_index], {}
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
+        # Apply safety rules to filter the action
+        for rule in self._rules:
+            action = rule.filter(action)
+        
         reward = self._reward_function.get_reward(i=self._state_index, action=action)
 
         self._state_index += 1
