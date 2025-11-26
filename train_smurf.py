@@ -13,6 +13,7 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from agents.torch.ppo_agent import PPOAgent
 from agents.torch.dqn_agent import DQNAgent
 from environments.environment import TradingEnvironment
+from environments.rewards.smurf import SmurfRewardFunction
 from environments.rewards.marketorder import MarketOrderRF
 from environments.rewards.marketlimitorder import MarketLimitOrderRF
 from metrics.trading.pnl import CumulativeLogReturn
@@ -55,23 +56,24 @@ def read_dataset(
     highs = crypto_dataset_df['high'].to_numpy(dtype=np.float32)
     lows = crypto_dataset_df['low'].to_numpy(dtype=np.float32)
 
-    train_reward_fn = reward_fn_instance(
+    # Wrap with SmurfRewardFunction
+    train_reward_fn = SmurfRewardFunction(reward_function=reward_fn_instance(
         timeframe_size=timeframe_size,
         target_horizon_len=target_horizon_len,
         highs=highs[: samples.shape[0] - num_eval_samples],
         lows=lows[: samples.shape[0] - num_eval_samples],
         closes=closes[: samples.shape[0] - num_eval_samples],
         fees_percentage=fees
-    )
+    ))
 
-    eval_reward_fn = reward_fn_instance(
+    eval_reward_fn = SmurfRewardFunction(reward_function=reward_fn_instance(
         timeframe_size=timeframe_size,
         target_horizon_len=target_horizon_len,
         highs=highs[samples.shape[0] - num_eval_samples - timeframe_size - target_horizon_len + 1:],
         lows=lows[samples.shape[0] - num_eval_samples - timeframe_size - target_horizon_len + 1:],
         closes=closes[samples.shape[0] - num_eval_samples - timeframe_size - target_horizon_len + 1:],
         fees_percentage=fees
-    )
+    ))
 
     assert x_train.shape[0] == train_reward_fn.get_reward_fn_shape()[0], \
         f'AssertionError: DimensionMismatch: x_train: {x_train.shape}, train_reward_fn: {train_reward_fn.get_reward_fn_shape()}'
@@ -179,7 +181,7 @@ if __name__ == "__main__":
             'steps_per_eval': 1000,
             'steps_per_log': 1000,
             'steps_per_checkpoint': 1000,
-        'device': 'cpu'
+            'device': 'cpu'
         }
     }
     train_dict = {
@@ -201,20 +203,20 @@ if __name__ == "__main__":
     }
 
     # Ensure directories exist
-    os.makedirs('experiments/tradernet', exist_ok=True)
+    os.makedirs('experiments/smurf', exist_ok=True)
 
     # Main training loop
     for agent_name, agent_config in agents_configs.items():
         for dataset_name, dataset_filepath in datasets_dict.items():
             for reward_fn_name, reward_fn_instance in rewards_dict.items():
-                print(f"Training {agent_name} on {dataset_name} with {reward_fn_name}...")
+                print(f"Training {agent_name} on {dataset_name} with {reward_fn_name} (Smurf)...")
                 torch.manual_seed(0)
                 np.random.seed(0)
 
                 train_params = {
                     'dataset_filepath': dataset_filepath,
                     'reward_fn_instance': reward_fn_instance,
-                    'checkpoint_filepath': f'database/storage/checkpoints/experiments/tradernet/{agent_name}/{dataset_name}/{reward_fn_name}/',
+                    'checkpoint_filepath': f'database/storage/checkpoints/experiments/smurf/{agent_name}/{dataset_name}/{reward_fn_name}/',
                     **train_dict,
                     **agent_config
                 }
@@ -235,7 +237,7 @@ if __name__ == "__main__":
                     **{metric.name: metric.episode_metrics for metric in eval_metrics}
                 }
                 metrics_df = pd.DataFrame(metrics_dict)
-                output_csv_path = f'experiments/tradernet/{agent_name}/{dataset_name}_{reward_fn_name}.csv'
+                output_csv_path = f'experiments/smurf/{agent_name}/{dataset_name}_{reward_fn_name}.csv'
                 os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
                 metrics_df.to_csv(output_csv_path, index=False)
                 print(f"Saved results to {output_csv_path}")
