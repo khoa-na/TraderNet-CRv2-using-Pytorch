@@ -29,7 +29,9 @@ def read_dataset(
         target_horizon_len,
         num_eval_samples,
         fees,
-        reward_fn_instance
+        reward_fn_instance,
+        position_size=1.0,
+        leverage=1.0
 ):
     # Reading dataset
     crypto_dataset_df = pd.read_csv(config.dataset_save_filepath.format(dataset_filepath))
@@ -63,7 +65,9 @@ def read_dataset(
         highs=highs[: samples.shape[0] - num_eval_samples],
         lows=lows[: samples.shape[0] - num_eval_samples],
         closes=closes[: samples.shape[0] - num_eval_samples],
-        fees_percentage=fees
+        fees_percentage=fees,
+        position_size=position_size,
+        leverage=leverage
     ))
 
     eval_reward_fn = SmurfRewardFunction(reward_function=reward_fn_instance(
@@ -72,7 +76,9 @@ def read_dataset(
         highs=highs[samples.shape[0] - num_eval_samples - timeframe_size - target_horizon_len + 1:],
         lows=lows[samples.shape[0] - num_eval_samples - timeframe_size - target_horizon_len + 1:],
         closes=closes[samples.shape[0] - num_eval_samples - timeframe_size - target_horizon_len + 1:],
-        fees_percentage=fees
+        fees_percentage=fees,
+        position_size=position_size,
+        leverage=leverage
     ))
 
     assert x_train.shape[0] == train_reward_fn.get_reward_fn_shape()[0], \
@@ -100,6 +106,8 @@ def train(
         steps_per_log,
         steps_per_checkpoint,
         save_best_only,
+        position_size=1.0,
+        leverage=1.0,
         **kwargs
 ):
     x_train, train_reward_fn, x_eval, eval_reward_fn = read_dataset(
@@ -108,7 +116,9 @@ def train(
         target_horizon_len=target_horizon_len,
         num_eval_samples=num_eval_samples,
         fees=fees,
-        reward_fn_instance=reward_fn_instance
+        reward_fn_instance=reward_fn_instance,
+        position_size=position_size,
+        leverage=leverage
     )
 
     # Create training environment wrapped with Monitor and DummyVecEnv for SB3

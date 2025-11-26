@@ -11,6 +11,8 @@ class RewardFunction(ABC):
             lows: np.ndarray,
             closes: np.ndarray,
             fees_percentage: float,
+            position_size: float = 1.0,
+            leverage: float = 1.0,
             verbose: bool = False
     ):
         rewards_fn = self._build_reward_fn(
@@ -21,8 +23,23 @@ class RewardFunction(ABC):
             closes=closes
         )
 
+        # Apply position size and leverage to raw price movement rewards
+        # Note: Fees are also scaled because if you use leverage L, you pay fees on L * Capital
+        # But here we add fees (which are negative log returns) to the reward.
+        # The fee formula: log((1 - f)/(1 + f)) represents the log return impact of entry+exit fees on the full position value.
+        # If we have leverage L, the PnL impact relative to our equity is L * (log return of price + log return of fees).
+        # So we should add fees first, then multiply everything by leverage * position_size.
+        
         fees = np.log((1 - fees_percentage)/(1 + fees_percentage))
         rewards_fn[:, 0:2] += fees
+        
+        # Scale by position size and leverage
+        # Effective multiplier = position_size * leverage
+        # Example: 10% position (0.1) * 10x leverage (10.0) = 1.0 (Full impact on equity)
+        # Example: 100% position (1.0) * 1x leverage (1.0) = 1.0
+        multiplier = position_size * leverage
+        rewards_fn[:, 0:2] *= multiplier
+
         hold_rewards = -rewards_fn.max(axis=1)
         hold_rewards[hold_rewards > 0] = 0
         self._rewards_fn = np.hstack((rewards_fn, np.expand_dims(hold_rewards, axis=-1)))

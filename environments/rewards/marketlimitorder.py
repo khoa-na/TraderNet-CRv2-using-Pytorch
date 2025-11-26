@@ -10,7 +10,9 @@ class MarketLimitOrderRF(RewardFunction):
             highs: np.ndarray,
             lows: np.ndarray,
             closes: np.ndarray,
-            fees_percentage: float
+            fees_percentage: float,
+            position_size: float = 1.0,
+            leverage: float = 1.0
     ):
         super().__init__(
             timeframe_size=timeframe_size,
@@ -18,7 +20,9 @@ class MarketLimitOrderRF(RewardFunction):
             highs=highs,
             lows=lows,
             closes=closes,
-            fees_percentage=fees_percentage
+            fees_percentage=fees_percentage,
+            position_size=position_size,
+            leverage=leverage
         )
 
     def _build_reward_fn(

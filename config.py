@@ -40,7 +40,9 @@ env_config = {
     'conv_layers': [(32, 3, 1)],
     'train_episode_steps': 100, # Steps per episode during training
     'eval_episodes': 1,         # Number of episodes to evaluate
-    'save_best_only': True
+    'save_best_only': True,
+    'position_size': 1.0,       # Percentage of capital per trade (0.0 to 1.0)
+    'leverage': 1.0             # Leverage multiplier (e.g., 1.0, 5.0, 10.0)
 }
 
 # Agent parameters
