@@ -150,73 +150,58 @@ def eval_tradernet(agent, env):
     return cumulative_rewards, pnls
 
 if __name__ == "__main__":
-    datasets_dict = {'DOGEUSDT': 'DOGEUSDT'}
-    agent_dict = {
-        'PPO': {
-            'agent_class': PPOAgent,
-        },
-        'DDQN': {
-            'agent_class': DQNAgent,
-        },
-    }
-    env_dict = {
-        'timeframe_size': 12,
-        'target_horizon_len': 20,
-        'num_eval_samples': 2250,
-        'fees': 0.007
-    }
-    
-    reward_fn_name = 'Market-Limit Orders'
-    reward_fn_instance = MarketLimitOrderRF
+    for agent_name, agent_params in config.agent_config.items():
+        for dataset_name, dataset_filepath in config.datasets_dict.items():
+            # Evaluation typically runs on one reward function type, or we loop through them?
+            # The original code had a fixed reward_fn_name. Let's loop through config.reward_config
+            # but maybe we only want to eval one. For now, let's loop to be consistent.
+            for reward_fn_name, reward_fn_instance in config.reward_config.items():
+                print(f"Evaluating {agent_name} on {dataset_name} with {reward_fn_name}...")
+                
+                # Build environment
+                env = build_eval_env(
+                    dataset_filepath=dataset_filepath,
+                    reward_fn_instance=reward_fn_instance,
+                    **config.env_config
+                )
+                
+                # Load agent
+                checkpoint_path = f'database/storage/checkpoints/experiments/tradernet/{agent_name}/{dataset_name}/{reward_fn_name}/'
+                agent = load_agent(
+                    agent_class=agent_params['agent_class'],
+                    checkpoint_filepath=checkpoint_path,
+                    env=env
+                )
+                
+                if agent is None:
+                    print(f"Skipping {agent_name} on {dataset_name} due to missing model.")
+                    continue
 
-    for agent_name, agent_config in agent_dict.items():
-        for dataset_name, dataset_filepath in datasets_dict.items():
-            print(f"Evaluating {agent_name} on {dataset_name}...")
-            
-            # Build environment
-            env = build_eval_env(
-                dataset_filepath=dataset_filepath,
-                reward_fn_instance=reward_fn_instance,
-                **env_dict
-            )
-            
-            # Load agent
-            checkpoint_path = f'database/storage/checkpoints/experiments/tradernet/{agent_name}/{dataset_name}/{reward_fn_name}/'
-            agent = load_agent(
-                agent_class=agent_config['agent_class'],
-                checkpoint_filepath=checkpoint_path,
-                env=env
-            )
-            
-            if agent is None:
-                print(f"Skipping {agent_name} on {dataset_name} due to missing model.")
-                continue
+                # Evaluate
+                average_returns, pnls = eval_tradernet(
+                    agent=agent.model, # Pass the SB3 model directly
+                    env=env
+                )
+                
+                # Get episode metrics from the environment
+                # Access the first env in DummyVecEnv
+                base_env = env.envs[0].unwrapped
+                episode_metrics = base_env.get_metrics() if hasattr(base_env, 'get_metrics') else []
+                
+                metrics = {
+                    'average_returns': [average_returns],
+                    **{metric.name: [metric.result()] for metric in episode_metrics} # Use result() to get final value
+                }
+                results_df = pd.DataFrame(metrics)
+                
+                output_metrics_path = f'experiments/tradernet/{agent_name}/{dataset_name}_{reward_fn_name}_metrics.csv'
+                os.makedirs(os.path.dirname(output_metrics_path), exist_ok=True)
+                results_df.to_csv(output_metrics_path, index=False)
 
-            # Evaluate
-            average_returns, pnls = eval_tradernet(
-                agent=agent.model, # Pass the SB3 model directly
-                env=env
-            )
-            
-            # Get episode metrics from the environment
-            # Access the first env in DummyVecEnv
-            base_env = env.envs[0].unwrapped
-            episode_metrics = base_env.get_metrics() if hasattr(base_env, 'get_metrics') else []
-            
-            metrics = {
-                'average_returns': [average_returns],
-                **{metric.name: [metric.result()] for metric in episode_metrics} # Use result() to get final value
-            }
-            results_df = pd.DataFrame(metrics)
-            
-            output_metrics_path = f'experiments/tradernet/{agent_name}/{dataset_name}_{reward_fn_name}_metrics.csv'
-            os.makedirs(os.path.dirname(output_metrics_path), exist_ok=True)
-            results_df.to_csv(output_metrics_path, index=False)
+                print(results_df, '\n')
 
-            print(results_df, '\n')
+                episode_pnls_df = pd.DataFrame(pnls, columns=['cumulative_pnl'])
+                output_pnls_path = f'experiments/tradernet/{agent_name}/{dataset_name}_{reward_fn_name}_eval_cumul_pnls.csv'
+                episode_pnls_df.to_csv(output_pnls_path, index=False)
 
-            episode_pnls_df = pd.DataFrame(pnls, columns=['cumulative_pnl'])
-            output_pnls_path = f'experiments/tradernet/{agent_name}/{dataset_name}_{reward_fn_name}_eval_cumul_pnls.csv'
-            episode_pnls_df.to_csv(output_pnls_path, index=False)
-
-            print(episode_pnls_df.tail(5))
+                print(episode_pnls_df.tail(5))

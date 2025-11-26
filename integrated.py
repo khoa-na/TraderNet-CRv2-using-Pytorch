@@ -148,93 +148,73 @@ def eval_tradernet_smurf(tradernet_agent, smurf_agent, env):
     return cumulative_rewards, pnls
 
 if __name__ == "__main__":
-    datasets_dict = {'DOGEUSDT': 'DOGEUSDT'}
-    
-    # We need both TraderNet and Smurf agents.
-    # Assuming we want to combine PPO (TraderNet) with DDQN (Smurf) or similar combinations.
-    # The original notebook seemed to iterate over agents, but for hybrid we need pairs.
-    # Let's define the pairs we want to test.
-    
     # Example: TraderNet=PPO, Smurf=DDQN (as seen in original notebook)
+    # We can infer this from config.agent_config if we want, or define pairs here.
+    # For now, let's keep the explicit pair definition but use classes from config.
     agent_pairs = [
         {
             'name': 'PPO_TraderNet_DDQN_Smurf',
-            'tradernet': {'class': PPOAgent, 'name': 'PPO'},
-            'smurf': {'class': DQNAgent, 'name': 'DDQN'} # Assuming Smurf was trained with DDQN
+            'tradernet': {'class': config.agent_config['PPO']['agent_class'], 'name': 'PPO'},
+            'smurf': {'class': config.agent_config['DDQN']['agent_class'], 'name': 'DDQN'}
         },
-        # Add more pairs if needed, e.g., PPO+PPO, DDQN+DDQN
     ]
-    
-    env_dict = {
-        'timeframe_size': 12,
-        'target_horizon_len': 20,
-        'num_eval_samples': 2250,
-        'fees': 0.007
-    }
-    
-    reward_fn_name = 'Market-Limit Orders'
-    reward_fn_instance = MarketLimitOrderRF
 
     for pair in agent_pairs:
         tradernet_conf = pair['tradernet']
         smurf_conf = pair['smurf']
         
-        for dataset_name, dataset_filepath in datasets_dict.items():
-            print(f"Evaluating Integrated {pair['name']} on {dataset_name}...")
-            
-            # Build environment
-            env = build_eval_env(
-                dataset_filepath=dataset_filepath,
-                reward_fn_instance=reward_fn_instance,
-                **env_dict
-            )
-            
-            # Load TraderNet Agent
-            tradernet_path = f'database/storage/checkpoints/experiments/tradernet/{tradernet_conf["name"]}/{dataset_name}/{reward_fn_name}/'
-            tradernet_agent = load_agent(tradernet_conf['class'], tradernet_path, env)
-            
-            # Load Smurf Agent
-            # Note: Smurf agents are stored in 'experiments/smurf'
-            smurf_path = f'database/storage/checkpoints/experiments/smurf/{smurf_conf["name"]}/{dataset_name}/{reward_fn_name}/'
-            smurf_agent = load_agent(smurf_conf['class'], smurf_path, env)
-            
-            if tradernet_agent is None or smurf_agent is None:
-                print(f"Skipping {pair['name']} due to missing models.")
-                if tradernet_agent is None: print(f"Missing TraderNet at {tradernet_path}")
-                if smurf_agent is None: print(f"Missing Smurf at {smurf_path}")
-                continue
+        for dataset_name, dataset_filepath in config.datasets_dict.items():
+            for reward_fn_name, reward_fn_instance in config.reward_config.items():
+                print(f"Evaluating Integrated {pair['name']} on {dataset_name} with {reward_fn_name}...")
+                
+                # Build environment
+                env = build_eval_env(
+                    dataset_filepath=dataset_filepath,
+                    reward_fn_instance=reward_fn_instance,
+                    **config.env_config
+                )
+                
+                # Load TraderNet Agent
+                tradernet_path = f'database/storage/checkpoints/experiments/tradernet/{tradernet_conf["name"]}/{dataset_name}/{reward_fn_name}/'
+                tradernet_agent = load_agent(tradernet_conf['class'], tradernet_path, env)
+                
+                # Load Smurf Agent
+                smurf_path = f'database/storage/checkpoints/experiments/smurf/{smurf_conf["name"]}/{dataset_name}/{reward_fn_name}/'
+                smurf_agent = load_agent(smurf_conf['class'], smurf_path, env)
+                
+                if tradernet_agent is None or smurf_agent is None:
+                    print(f"Skipping {pair['name']} due to missing models.")
+                    if tradernet_agent is None: print(f"Missing TraderNet at {tradernet_path}")
+                    if smurf_agent is None: print(f"Missing Smurf at {smurf_path}")
+                    continue
 
-            # Evaluate Hybrid
-            average_returns, pnls = eval_tradernet_smurf(
-                tradernet_agent=tradernet_agent.model,
-                smurf_agent=smurf_agent.model,
-                env=env
-            )
-            
-            # Get episode metrics
-            base_env = env.envs[0].unwrapped
-            episode_metrics = base_env.get_metrics() if hasattr(base_env, 'get_metrics') else []
-            
-            metrics = {
-                'average_returns': [average_returns],
-                **{metric.name: [metric.result()] for metric in episode_metrics}
-            }
-            results_df = pd.DataFrame(metrics)
-            
-            # Save to 'experiments/integrated/...'
-            # We use the TraderNet agent name as the primary folder, or create a new structure
-            # Original notebook used: experiments/integrated/{agent_name}/...
-            # Let's use the pair name or just the TraderNet name if that was the convention
-            output_dir = f'experiments/integrated/{tradernet_conf["name"]}' 
-            
-            output_metrics_path = f'{output_dir}/{dataset_name}_{reward_fn_name}_metrics.csv'
-            os.makedirs(os.path.dirname(output_metrics_path), exist_ok=True)
-            results_df.to_csv(output_metrics_path, index=False)
+                # Evaluate Hybrid
+                average_returns, pnls = eval_tradernet_smurf(
+                    tradernet_agent=tradernet_agent.model,
+                    smurf_agent=smurf_agent.model,
+                    env=env
+                )
+                
+                # Get episode metrics
+                base_env = env.envs[0].unwrapped
+                episode_metrics = base_env.get_metrics() if hasattr(base_env, 'get_metrics') else []
+                
+                metrics = {
+                    'average_returns': [average_returns],
+                    **{metric.name: [metric.result()] for metric in episode_metrics}
+                }
+                results_df = pd.DataFrame(metrics)
+                
+                output_dir = f'experiments/integrated/{tradernet_conf["name"]}' 
+                
+                output_metrics_path = f'{output_dir}/{dataset_name}_{reward_fn_name}_metrics.csv'
+                os.makedirs(os.path.dirname(output_metrics_path), exist_ok=True)
+                results_df.to_csv(output_metrics_path, index=False)
 
-            print(results_df, '\n')
+                print(results_df, '\n')
 
-            episode_pnls_df = pd.DataFrame(pnls, columns=['cumulative_pnl'])
-            output_pnls_path = f'{output_dir}/{dataset_name}_{reward_fn_name}_eval_cumul_pnls.csv'
-            episode_pnls_df.to_csv(output_pnls_path, index=False)
+                episode_pnls_df = pd.DataFrame(pnls, columns=['cumulative_pnl'])
+                output_pnls_path = f'{output_dir}/{dataset_name}_{reward_fn_name}_eval_cumul_pnls.csv'
+                episode_pnls_df.to_csv(output_pnls_path, index=False)
 
-            print(episode_pnls_df.tail(5))
+                print(episode_pnls_df.tail(5))

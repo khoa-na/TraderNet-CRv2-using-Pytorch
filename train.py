@@ -160,53 +160,19 @@ def train(
 
 if __name__ == "__main__":
     # Configuration
-    datasets_dict = {'DOGEUSDT': 'DOGEUSDT'}
-    rewards_dict = {
-        'Market-Orders':  MarketOrderRF,
-        'Market-Limit Orders': MarketLimitOrderRF
-    }
-    agents_configs = {
-        'DDQN': {
-            'agent_class': DQNAgent,
-            'train_iterations': 100, # Reduced for testing
-            'steps_per_eval': 500,
-            'steps_per_log': 500,
-            'steps_per_checkpoint': 500
-        },
-        'PPO': {
-            'agent_class': PPOAgent,
-            'train_iterations': 100, # Reduced for testing
-            'steps_per_eval': 1000,
-            'steps_per_log': 1000,
-            'steps_per_checkpoint': 1000,
-        'device': 'cpu'
-        }
-    }
-    train_dict = {
-        'timeframe_size': 12,
-        'target_horizon_len': 20,
-        'num_eval_samples': 2250,
-        'fees': 0.007,
-        'fc_layers': [256, 256],
-        'conv_layers': [(32, 3, 1)],
-        'train_episode_steps': 100,
-        'eval_episodes': 1,
-        'save_best_only': True
-    }
-
     # Results container
     results = {
-        'PPO': {dataset_name: {} for dataset_name in datasets_dict.keys()},
-        'DDQN': {dataset_name: {} for dataset_name in datasets_dict.keys()}
+        agent_name: {dataset_name: {} for dataset_name in config.datasets_dict.keys()}
+        for agent_name in config.agent_config.keys()
     }
 
     # Ensure directories exist
     os.makedirs('experiments/tradernet', exist_ok=True)
 
     # Main training loop
-    for agent_name, agent_config in agents_configs.items():
-        for dataset_name, dataset_filepath in datasets_dict.items():
-            for reward_fn_name, reward_fn_instance in rewards_dict.items():
+    for agent_name, agent_params in config.agent_config.items():
+        for dataset_name, dataset_filepath in config.datasets_dict.items():
+            for reward_fn_name, reward_fn_instance in config.reward_config.items():
                 print(f"Training {agent_name} on {dataset_name} with {reward_fn_name}...")
                 torch.manual_seed(0)
                 np.random.seed(0)
@@ -215,8 +181,8 @@ if __name__ == "__main__":
                     'dataset_filepath': dataset_filepath,
                     'reward_fn_instance': reward_fn_instance,
                     'checkpoint_filepath': f'database/storage/checkpoints/experiments/tradernet/{agent_name}/{dataset_name}/{reward_fn_name}/',
-                    **train_dict,
-                    **agent_config
+                    **config.env_config,
+                    **agent_params
                 }
                 
                 # Ensure checkpoint directory exists
