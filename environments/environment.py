@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import numpy as np
 from environments.actions import Action
 from metrics.metric import Metric
@@ -6,6 +6,8 @@ from metrics.metric import Metric
 
 class TradingEnvironment(gym.Env):
     def __init__(self, env_config: dict):
+        super().__init__()
+        
         assert 'states' in env_config, 'AssertionError: Expected "states" in env_config'
         assert 'reward_fn' in env_config, 'AssertionError: Expected "reward_function" in env_config'
         assert 'episode_steps' in env_config, 'AssertionError: Expected "episode_steps" in env_config'
@@ -51,32 +53,35 @@ class TradingEnvironment(gym.Env):
         for metric in self._metrics:
             metric.register()
 
-    def reset(self) -> np.ndarray:
+    def reset(self, seed=None, options=None) -> tuple[np.ndarray, dict]:
+        super().reset(seed=seed)
         for metric in self._metrics:
             metric.reset()
-        return self._states[self._state_index]
+        return self._states[self._state_index], {}
 
-    def step(self, action: int) -> (np.ndarray, float, bool):
+    def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
         reward = self._reward_function.get_reward(i=self._state_index, action=action)
 
         self._state_index += 1
         next_state = self._states[self._state_index]
 
         if self._state_index == self._num_states:
-            done = True
+            terminated = True
             self._state_index = 0
         elif self._state_index % self._episode_steps == 0:
-            done = True
+            terminated = True
         else:
-            done = False
+            terminated = False
+
+        truncated = False
 
         log_pnl = 0.0 if action == Action.HOLD.value else reward
         self.update_metrics(log_pnl=log_pnl)
 
-        if done:
+        if terminated:
             self.register_metrics()
-        return next_state, reward, done
+        return next_state, reward, terminated, truncated, {}
 
-    def render(self, mode=None):
+    def render(self):
         print('\n--- Current State ---')
         print(self._states[self._state_index])
