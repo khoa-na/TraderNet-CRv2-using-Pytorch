@@ -12,7 +12,7 @@ dataset_save_filepath = 'database/storage/datasets/{}.csv'
 
 regression_features = [
     'open_log_returns', 'high_log_returns', 'low_log_returns',
-    'close_log_returns', 'volume_log_returns', 'trades_log_returns', 'hour',
+    'close_log_returns', 'volume_log_returns', 'hour',
     'macd_signal_diffs', 'stoch', 'aroon_up', 'aroon_down', 'rsi', 'adx', 'cci',
     'close_dema', 'close_vwap', 'bband_up_close', 'close_bband_down', 'adl_diffs', 'obv_diffs'
 ]
