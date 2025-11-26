@@ -31,9 +31,11 @@ class TradingEnvironment(gym.Env):
 
         self._state_index = 0
 
+        # Use fixed 0-1 bounds for observation space to ensure compatibility
+        # between training and evaluation environments when data is normalized.
         self.observation_space = gym.spaces.Box(
-            low=self._states.min(axis=0),
-            high=self._states.max(axis=0),
+            low=0.0,
+            high=1.0,
             shape=self._states.shape[1:],
             dtype=np.float32
         )
