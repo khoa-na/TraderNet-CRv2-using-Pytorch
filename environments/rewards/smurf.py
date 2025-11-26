@@ -11,7 +11,7 @@ class SmurfRewardFunction:
         smurf_rf = self._reward_function.reward_fn
         smurf_rf[:, 2] = 0.0055
         self._reward_function.reward_fn = smurf_rf
-        print(self._reward_function.reward_fn[0])
+
 
     def __call__(self, i: int, action: int) -> float:
         return self.get_reward(i=i, action=action)

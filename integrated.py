@@ -71,7 +71,8 @@ def build_eval_env(
         target_horizon_len,
         num_eval_samples,
         fees,
-        reward_fn_instance
+        reward_fn_instance,
+        **kwargs
 ):
     x_eval, eval_reward_fn = read_dataset(
         dataset_filepath=dataset_filepath,

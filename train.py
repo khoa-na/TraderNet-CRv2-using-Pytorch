@@ -134,15 +134,16 @@ def train(
     eval_env = DummyVecEnv([make_eval_env])
 
     # Initialize agent with SB3 wrapper
+    # Initialize agent with SB3 wrapper
     agent = agent_class(
         env=train_env,
         tensorboard_log=checkpoint_filepath,
-        verbose=1,
+        verbose=0,
         **kwargs
     )
 
     # Train the agent
-    agent.train(total_timesteps=train_iterations)
+    agent.train(total_timesteps=train_iterations, progress_bar=True)
 
     # Save the model
     agent.save(checkpoint_filepath + 'model')

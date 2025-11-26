@@ -49,7 +49,8 @@ agent_config = {
         'agent_class': PPOAgent,
         'learning_rate': 1e-4,
         'batch_size': 64,
-        'train_iterations': 100,
+        'train_iterations': 100000,
+        'steps_per_eval': 1000,
         'steps_per_log': 1000,
         'steps_per_checkpoint': 1000,
         'device': 'cpu' # Force CPU to avoid SB3 warning for MlpPolicy
@@ -58,7 +59,8 @@ agent_config = {
         'agent_class': DQNAgent,
         'learning_rate': 1e-3,
         'batch_size': 64,
-        'train_iterations': 100,
+        'train_iterations': 100000,
+        'steps_per_eval': 1000,
         'steps_per_log': 1000,
         'steps_per_checkpoint': 1000,
         'device': 'cpu'
