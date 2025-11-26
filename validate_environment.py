@@ -2,12 +2,11 @@ import numpy as np
 import pandas as pd
 import config
 from sklearn.preprocessing import MinMaxScaler
+from stable_baselines3.common.env_checker import check_env
 from database.datasets.targets.market_limit_orders_builder import MarketLimitOrdersBuilder
 from database.datasets.utils import split_train_test
 from environments.environment import TradingEnvironment
 from environments.rewards import RewardFunction
-from environments.wrappers.tf.utils import validate_environment
-from environments.wrappers.tf.tfenv import TFEnvironment
 
 timeframe_len = 12
 target_horizon_len = 12
@@ -38,7 +37,10 @@ train_reward_fn = RewardFunction(targets=y_train, fees_percentage=fees_percentag
 env = TradingEnvironment(env_config={
     'states': inputs,
     'reward_fn': train_reward_fn,
-    'episode_steps': episode_steps
+    'episode_steps': episode_steps,
+    'metrics': None
 })
-tf_env = TFEnvironment(env=env)
-validate_environment(env=tf_env, episodes=10)
+
+# Validate environment compatibility with Stable Baselines 3
+check_env(env, warn=True)
+print("Environment passed SB3 compatibility check!")
