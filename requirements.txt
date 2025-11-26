@@ -1,13 +1,8 @@
 numpy
 pandas
-matplotlib
-python-binance
-python-dotenv
-tqdm
-ta
+gymnasium
 torch
 stable-baselines3
-shimmy>=2.0.0
-gymnasium
-scikit-learn
 tensorboard
+scikit-learn
+seaborn
